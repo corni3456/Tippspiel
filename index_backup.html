@@ -89,6 +89,7 @@
       border-radius: 8px;
       font-size: 14px;
       margin-bottom: 20px;
+      /* Vergrößerter Abstand zu den Reitern */
     }
 
     .form-container {
@@ -297,6 +298,11 @@
             <label for="options">Rennen auswählen:</label>
             <select id="options" required>
               <option value="" disabled selected>Bitte wählen...</option>
+              <option value="Option 1">Option 1</option>
+              <option value="Option 2">Option 2</option>
+              <option value="Option 3">Option 3</option>
+              <option value="Option 4">Option 4</option>
+              <option value="Option 5">Option 5</option>
             </select>
           </div>
 
@@ -341,6 +347,11 @@
             <label for="resultOptions">Rennen auswählen:</label>
             <select id="resultOptions" required>
               <option value="" disabled selected>Bitte wählen...</option>
+              <option value="Option 1">Option 1</option>
+              <option value="Option 2">Option 2</option>
+              <option value="Option 3">Option 3</option>
+              <option value="Option 4">Option 4</option>
+              <option value="Option 5">Option 5</option>
             </select>
           </div>
 
@@ -407,11 +418,8 @@
   </div>
 
   <script>
-    // URL zu deinem Google Apps Script Backend
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzdCwYBMpPIqtaBszbHM3ATjs-oxI687TeY0PDs2qH4UagWhplPhQTiItLXueYmcDW3/exec";
-
     function loadRaces() {
-      fetch(GOOGLE_SCRIPT_URL)
+      fetch("https://script.google.com/macros/s/AKfycbzdCwYBMpPIqtaBszbHM3ATjs-oxI687TeY0PDs2qH4UagWhplPhQTiItLXueYmcDW3/exec")
         .then(response => response.json())
         .then(res => {
           if (res.status === "success" && Array.isArray(res.rennen)) {
@@ -430,9 +438,9 @@
         })
         .catch(error => console.error('Fehler beim Laden der Rennen:', error));
     }
-
     // Aufrufen, sobald die Seite fertig geladen ist
     document.addEventListener('DOMContentLoaded', loadRaces);
+
 
     // Liste aller gültigen Benutzernamen
     const allowedUsers = ["MCorn", "GBern", "SThom", "ADomi", "HAlex"];
@@ -453,11 +461,12 @@
     const raceSelect = document.getElementById('options');
     const resultRaceSelect = document.getElementById('resultOptions');
 
-    // Zusammenfassung ausblenden, sobald ein anderes Rennen gewählt wird
+    // Zusammenfassung ausblenden, sobald ein anderes Rennen im Wettschein-Dropdown gewählt wird
     raceSelect.addEventListener('change', function () {
       summaryDiv.style.display = 'none';
     });
 
+    // Zusammenfassung ausblenden, sobald ein anderes Rennen im Ergebnis-Dropdown gewählt wird
     resultRaceSelect.addEventListener('change', function () {
       resultsSummary.style.display = 'none';
     });
@@ -474,10 +483,11 @@
       event.preventDefault();
       const usernameInput = document.getElementById('username').value.trim();
 
+      // Überprüfung gegen das Array der erlaubten Benutzer
       const matchedUser = allowedUsers.find(u => u.toLowerCase() === usernameInput.toLowerCase());
 
       if (matchedUser) {
-        loggedInUser = matchedUser;
+        loggedInUser = matchedUser; // Exakte Schreibweise speichern
         currentUserDisplay.textContent = loggedInUser;
 
         resetViewState();
@@ -528,7 +538,6 @@
       });
     });
 
-    // WETTSCHEIN ABSENDEN
     dataForm.addEventListener('submit', function (event) {
       event.preventDefault();
 
@@ -557,7 +566,6 @@
         return;
       }
 
-      // 1. Zusammenfassung sofort anzeigen
       document.getElementById('summaryUser').textContent = loggedInUser;
       document.getElementById('selectedOption').textContent = selectedOption;
       document.getElementById('summaryVal1').textContent = v1;
@@ -565,30 +573,6 @@
       document.getElementById('summaryVal3').textContent = v3;
 
       summaryDiv.style.display = 'block';
-
-      // 2. Daten an Google Apps Script im Hintergrund senden
-      const payload = {
-        user: loggedInUser,
-        rennen: selectedOption,
-        platz1: v1,
-        platz2: v2,
-        platz3: v3
-      };
-
-      fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: {
-          "Content-Type": "text/plain"
-        },
-        body: JSON.stringify(payload)
-      })
-      .then(() => {
-        console.log("Wette erfolgreich abgesendet.");
-      })
-      .catch(error => {
-        console.error("Fehler beim Übertragen der Wette:", error);
-      });
     });
 
     // JS für Ergebnisabfrage-Formular
