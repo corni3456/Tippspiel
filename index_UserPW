@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wettschein</title>
+
+  <!-- 
+    Copyright (c) 2026 [Cornelius Müller]. Alle Rechte vorbehalten.
+    Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwendet werden.
+  -->
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+      background-color: #ffffff;
+      color: #333333;
+    }
+
+    /* Login-Overlay Styling */
+    .login-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(255, 255, 255, 0.98);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .login-card {
+      background: #ffffff;
+      padding: 30px;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+    }
+
+    .login-logo {
+      max-width: 200px;
+      height: auto;
+      margin-bottom: 20px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .login-card label {
+      text-align: left;
+    }
+
+    .login-card input {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0 15px 0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+
+    .error-msg {
+      color: #d32f2f;
+      font-size: 14px;
+      display: none;
+      margin-top: -5px;
+      margin-bottom: 10px;
+    }
+
+    /* Hauptinhalt standardmäßig ausblenden */
+    .app-content {
+      display: none;
+    }
+
+    /* Status-Header für den eingeloggten User */
+    .user-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #f8f9fa;
+      padding: 12px 15px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
+    .form-container {
+      background: #ffffff;
+      padding: 25px;
+      border-radius: 0 0 8px 8px;
+      border: 1px solid #e0e0e0;
+      border-top: none;
+    }
+
+    /* Tab-Navigation Styles */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .tab-button {
+      flex: 1;
+      padding: 12px;
+      background-color: #f1f1f1;
+      border: 1px solid #e0e0e0;
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      color: #666666;
+      transition: background-color 0.2s, color 0.2s;
+      margin: 0;
+      width: auto;
+    }
+
+    .tab-button:hover {
+      background-color: #e2e2e2;
+    }
+
+    .tab-button.active {
+      background-color: #ffffff;
+      color: #2e7d32;
+      border-bottom: 1px solid #ffffff;
+      margin-bottom: -1px;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    h2 {
+      color: #333333;
+      margin-top: 0;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #333333;
+    }
+
+    select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      background-color: #ffffff;
+      outline: none;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .input-row .field {
+      flex: 1;
+    }
+
+    .input-row input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      background-color: #ffffff;
+      outline: none;
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 12px;
+      background-color: #2e7d32;
+      color: #ffffff;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background-color 0.2s;
+    }
+
+    .submit-btn:hover {
+      background-color: #1b5e20;
+    }
+
+    .submit-btn:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+
+    /* Zusammenfassungs-Box */
+    .summary-box {
+      margin-top: 25px;
+      padding: 15px 20px;
+      background-color: #ffffff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      display: none;
+    }
+
+    .summary-box h3 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      color: #333333;
+    }
+
+    .summary-box ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    /* Styling für die Tabelle im 3. Reiter */
+    .standings-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    .standings-table th,
+    .standings-table td {
+      border: 1px solid #e0e0e0;
+      padding: 10px;
+      text-align: left;
+    }
+
+    .standings-table th {
+      background-color: #f8f9fa;
+      font-weight: bold;
+    }
+
+    /* Footer Styling */
+    .app-footer {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 12px;
+      color: #888888;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Login Overlay -->
+  <div id="loginOverlay" class="login-overlay">
+    <div class="login-card">
+      <img src="images/logo.png" alt="Logo" class="login-logo">
+      <h2>Login</h2>
+      <form id="loginForm">
+        <label for="username">Benutzername:</label>
+        <input type="text" id="username" placeholder="Benutzername eingeben" required autofocus>
+        
+        <label for="password">Passwort:</label>
+        <input type="password" id="password" placeholder="Passwort eingeben" required>
+        
+        <div id="loginError" class="error-msg">Benutzername oder Passwort falsch!</div>
+        <button type="submit" id="loginBtn" class="submit-btn">Anmelden</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Haupt-Anwendung -->
+  <div id="appContent" class="app-content">
+
+    <!-- User Status Anzeige -->
+    <div class="user-header">
+      <span>Eingeloggt als: <strong id="currentUserDisplay">-</strong></span>
+      <button onclick="logout()"
+        style="background:none; border:none; color:#d32f2f; cursor:pointer; font-weight:bold;">Abmelden</button>
+    </div>
+
+    <!-- Reiter-Navigation -->
+    <div class="tabs">
+      <button class="tab-button active" onclick="openTab(event, 'wettschein')">Wettschein</button>
+      <button class="tab-button" onclick="openTab(event, 'ergebnisse')">Ergebnisse</button>
+      <button class="tab-button" onclick="openTab(event, 'tabelle')">Tabelle</button>
+    </div>
+
+    <div class="form-container">
+
+      <!-- TAB 1: Wettschein -->
+      <div id="wettschein" class="tab-content active">
+        <h2>Wettschein</h2>
+        <form id="dataForm">
+
+          <div class="form-group">
+            <label for="options">Rennen auswählen:</label>
+            <select id="options" required>
+              <option value="" disabled selected>Bitte wählen...</option>
+            </select>
+          </div>
+
+          <div class="form-group input-row">
+            <div class="field">
+              <label for="val1">Platz 1:</label>
+              <input type="number" id="val1" step="any" min="0.0001" required>
+            </div>
+            <div class="field">
+              <label for="val2">Platz 2:</label>
+              <input type="number" id="val2" step="any" min="0.0001" required>
+            </div>
+            <div class="field">
+              <label for="val3">Platz 3:</label>
+              <input type="number" id="val3" step="any" min="0.0001" required>
+            </div>
+          </div>
+
+          <button type="submit" class="submit-btn">Eingaben bestätigen</button>
+        </form>
+
+        <!-- Zusammenfassungsbereich -->
+        <div id="summary" class="summary-box">
+          <h3>Zusammenfassung</h3>
+          <p><strong>Benutzer:</strong> <span id="summaryUser">-</span></p>
+          <p><strong>Rennen:</strong> <span id="selectedOption">-</span></p>
+          <p><strong>Wette:</strong></p>
+          <ul>
+            <li>Platz 1: <span id="summaryVal1">-</span></li>
+            <li>Platz 2: <span id="summaryVal2">-</span></li>
+            <li>Platz 3: <span id="summaryVal3">-</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- TAB 2: Ergebnisse -->
+      <div id="ergebnisse" class="tab-content">
+        <h2>Ergebnisse</h2>
+        <form id="resultsForm">
+
+          <div class="form-group">
+            <label for="resultOptions">Rennen auswählen:</label>
+            <select id="resultOptions" required>
+              <option value="" disabled selected>Bitte wählen...</option>
+            </select>
+          </div>
+
+          <button type="submit" class="submit-btn">Ergebnisse abfragen</button>
+        </form>
+
+        <!-- Ergebnis-Anzeige Bereich -->
+        <div id="resultsSummary" class="summary-box">
+          <h3>Ergebnis</h3>
+          <p><strong>Abgefragtes Rennen:</strong> <span id="resOption">-</span></p>
+          <p><strong>Status:</strong> Ergebnisse geladen.</p>
+        </div>
+      </div>
+
+      <!-- TAB 3: Tabelle -->
+      <div id="tabelle" class="tab-content">
+        <h2>Gesamttabelle</h2>
+        <p>Aktueller Punktestand der Spieler:</p>
+        <table class="standings-table">
+          <thead>
+            <tr>
+              <th>Platz</th>
+              <th>Spieler</th>
+              <th>Punkte</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr>
+              <td>1</td>
+              <td>Thomas</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>Alex</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>Schorles</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>Bernhard</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td>Corni</td>
+              <td>0</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- Visible Footer -->
+    <footer class="app-footer">
+      <p>&copy; 2026 [Cornelius Mueller]. Alle Rechte vorbehalten.</p>
+    </footer>
+
+  </div>
+
+  <script>
+    // URL zu deinem Google Apps Script Backend
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwra9Pp0CQiEqVOS1n27YiLfxkhdc5ytWsH8O7C85dvXviMIpHE9xvkBhID2sIiKhwj/exec";
+
+    function loadRaces() {
+      fetch(GOOGLE_SCRIPT_URL)
+        .then(response => response.json())
+        .then(res => {
+          if (res.status === "success" && Array.isArray(res.rennen)) {
+            const selects = [document.getElementById('options'), document.getElementById('resultOptions')];
+
+            selects.forEach(select => {
+              select.innerHTML = '<option value="" disabled selected>Bitte wählen...</option>';
+              res.rennen.forEach(rennenName => {
+                const opt = document.createElement('option');
+                opt.value = rennenName;
+                opt.textContent = rennenName;
+                select.appendChild(opt);
+              });
+            });
+          }
+        })
+        .catch(error => console.error('Fehler beim Laden der Rennen:', error));
+    }
+
+    // Aufrufen, sobald die Seite fertig geladen ist
+    document.addEventListener('DOMContentLoaded', loadRaces);
+
+    let loggedInUser = "";
+
+    const loginForm = document.getElementById('loginForm');
+    const loginOverlay = document.getElementById('loginOverlay');
+    const appContent = document.getElementById('appContent');
+    const loginError = document.getElementById('loginError');
+    const loginBtn = document.getElementById('loginBtn');
+    const currentUserDisplay = document.getElementById('currentUserDisplay');
+
+    const summaryDiv = document.getElementById('summary');
+    const resultsSummary = document.getElementById('resultsSummary');
+    const dataForm = document.getElementById('dataForm');
+    const resultsForm = document.getElementById('resultsForm');
+
+    // Dropdowns
+    const raceSelect = document.getElementById('options');
+    const resultRaceSelect = document.getElementById('resultOptions');
+
+    // Zusammenfassung ausblenden, sobald ein anderes Rennen gewählt wird
+    raceSelect.addEventListener('change', function () {
+      summaryDiv.style.display = 'none';
+    });
+
+    resultRaceSelect.addEventListener('change', function () {
+      resultsSummary.style.display = 'none';
+    });
+
+    // Hilfsfunktion zum Zurücksetzen/Ausblenden der Ansichten
+    function resetViewState() {
+      summaryDiv.style.display = 'none';
+      resultsSummary.style.display = 'none';
+      dataForm.reset();
+      resultsForm.reset();
+    }
+
+    // LOGIN FORMULAR ABSENDEN (Prüfung über Google Apps Script)
+    loginForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+      
+      const usernameInput = document.getElementById('username').value.trim();
+      const passwordInput = document.getElementById('password').value.trim();
+
+      loginError.style.display = 'none';
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Prüfe Daten...';
+
+      // Anmeldedaten an Google Apps Script zur Überprüfung senden
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8"
+        },
+        body: JSON.stringify({
+          action: "login",
+          username: usernameInput,
+          password: passwordInput
+        })
+      })
+      .then(response => response.json())
+      .then(res => {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Anmelden';
+
+        if (res.status === "success") {
+          loggedInUser = res.username || usernameInput;
+          currentUserDisplay.textContent = loggedInUser;
+
+          resetViewState();
+
+          loginOverlay.style.display = 'none';
+          appContent.style.display = 'block';
+        } else {
+          loginError.textContent = res.message || "Benutzername oder Passwort falsch!";
+          loginError.style.display = 'block';
+        }
+      })
+      .catch(error => {
+        console.error("Fehler beim Login:", error);
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Anmelden';
+        loginError.textContent = "Verbindungsfehler beim Anmelden!";
+        loginError.style.display = 'block';
+      });
+    });
+
+    function logout() {
+      loggedInUser = "";
+      document.getElementById('username').value = "";
+      document.getElementById('password').value = "";
+      loginError.style.display = 'none';
+
+      resetViewState();
+
+      loginOverlay.style.display = 'flex';
+      appContent.style.display = 'none';
+    }
+
+    // Tab-Umschaltung
+    function openTab(evt, tabName) {
+      const tabContents = document.getElementsByClassName("tab-content");
+      for (let i = 0; i < tabContents.length; i++) {
+        tabContents[i].classList.remove("active");
+      }
+
+      const tabButtons = document.getElementsByClassName("tab-button");
+      for (let i = 0; i < tabButtons.length; i++) {
+        tabButtons[i].classList.remove("active");
+      }
+
+      document.getElementById(tabName).classList.add("active");
+      evt.currentTarget.classList.add("active");
+    }
+
+    // JS für Wettschein-Formular
+    const input1 = document.getElementById('val1');
+    const input2 = document.getElementById('val2');
+    const input3 = document.getElementById('val3');
+
+    [input1, input2, input3].forEach(input => {
+      input.addEventListener('input', () => {
+        input.setCustomValidity('');
+      });
+    });
+
+    // WETTSCHEIN ABSENDEN
+    dataForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+
+      input1.setCustomValidity('');
+      input2.setCustomValidity('');
+      input3.setCustomValidity('');
+
+      const selectedOption = raceSelect.value;
+      const v1 = parseFloat(input1.value);
+      const v2 = parseFloat(input2.value);
+      const v3 = parseFloat(input3.value);
+
+      if (v1 <= 0 || v2 <= 0 || v3 <= 0 || isNaN(v1) || isNaN(v2) || isNaN(v3)) {
+        alert("Bitte gib für alle drei Felder Werte ein, die größer als 0 sind.");
+        return;
+      }
+
+      if (v1 === v2) {
+        input2.setCustomValidity('Wert muss sich von Platz 1 unterscheiden.');
+        input2.reportValidity();
+        return;
+      }
+      if (v1 === v3 || v2 === v3) {
+        input3.setCustomValidity('Wert muss sich von den anderen Plätzen unterscheiden.');
+        input3.reportValidity();
+        return;
+      }
+
+      // 1. Zusammenfassung sofort anzeigen
+      document.getElementById('summaryUser').textContent = loggedInUser;
+      document.getElementById('selectedOption').textContent = selectedOption;
+      document.getElementById('summaryVal1').textContent = v1;
+      document.getElementById('summaryVal2').textContent = v2;
+      document.getElementById('summaryVal3').textContent = v3;
+
+      summaryDiv.style.display = 'block';
+
+      // 2. Daten an Google Apps Script im Hintergrund senden
+      const payload = {
+        action: "saveBet",
+        user: loggedInUser,
+        rennen: selectedOption,
+        platz1: v1,
+        platz2: v2,
+        platz3: v3
+      };
+
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: {
+          "Content-Type": "text/plain"
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(() => {
+        console.log("Wette erfolgreich abgesendet.");
+      })
+      .catch(error => {
+        console.error("Fehler beim Übertragen der Wette:", error);
+      });
+    });
+
+    // JS für Ergebnisabfrage-Formular
+    resultsForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+
+      const resOption = resultRaceSelect.value;
+      document.getElementById('resOption').textContent = resOption;
+
+      resultsSummary.style.display = 'block';
+    });
+  </script>
+
+</body>
+
+</html>
