@@ -7,7 +7,7 @@
   <title>Wettschein</title>
 
   <!-- 
-    Copyright (c) 2026 Cornelius Müller. Alle Rechte vorbehalten.
+    Copyright (c) 2026 [Cornelius Müller]. Alle Rechte vorbehalten.
     Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwendet werden.
   -->
 
@@ -212,29 +212,6 @@
       cursor: not-allowed;
     }
 
-    /* Info-Meldung unter dem Button */
-    .info-msg-box {
-      margin-top: 12px;
-      padding: 10px 14px;
-      border-radius: 4px;
-      font-size: 14px;
-      font-weight: bold;
-      display: none;
-      text-align: center;
-    }
-
-    .info-msg-box.warning {
-      background-color: #fff3cd;
-      color: #856404;
-      border: 1px solid #ffeeba;
-    }
-
-    .info-msg-box.error {
-      background-color: #f8d7da;
-      color: #721c24;
-      border: 1px solid #f5c6cb;
-    }
-
     /* Zusammenfassungs-Box */
     .summary-box {
       margin-top: 25px;
@@ -256,7 +233,7 @@
       padding-left: 20px;
     }
 
-    /* Styling für Tabellen */
+    /* Styling für die Tabelle im 3. Reiter */
     .standings-table {
       width: 100%;
       border-collapse: collapse;
@@ -379,28 +356,14 @@
             </select>
           </div>
 
-          <button type="submit" id="getResultsBtn" class="submit-btn">Ergebnisse abfragen</button>
+          <button type="submit" class="submit-btn">Ergebnisse abfragen</button>
         </form>
 
-        <!-- Info-Textfeld direkt unter dem Button -->
-        <div id="resultsInfoMsg" class="info-msg-box"></div>
-
-        <!-- Ergebnis-Anzeige Bereich mit Tabelle -->
+        <!-- Ergebnis-Anzeige Bereich -->
         <div id="resultsSummary" class="summary-box">
-          <h3>Ergebnisse für: <span id="resOption">-</span></h3>
-          <table class="standings-table">
-            <thead>
-              <tr>
-                <th>Spieler</th>
-                <th>Platz 1</th>
-                <th>Platz 2</th>
-                <th>Platz 3</th>
-              </tr>
-            </thead>
-            <tbody id="resultsTableBody">
-              <!-- Dynamische Befüllung per JS -->
-            </tbody>
-          </table>
+          <h3>Ergebnis</h3>
+          <p><strong>Abgefragtes Rennen:</strong> <span id="resOption">-</span></p>
+          <p><strong>Status:</strong> Ergebnisse geladen.</p>
         </div>
       </div>
 
@@ -436,7 +399,7 @@
   </div>
 
   <script>
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyWs7WAJDMR9KJ7DqX7RqwPlebp__gJukMO1e0gchAEvqtYs6pN-3pSt0l5OmnKAGnF/exec";
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz0Hg2qMX5koXsjDqC7Fx1yLfBJ5GC5jxwOopue_5IKG9nK703T-gXT620DEkxOMoFQ/exec";
 
     let loggedInUser = "";
 
@@ -449,12 +412,9 @@
 
     const summaryDiv = document.getElementById('summary');
     const resultsSummary = document.getElementById('resultsSummary');
-    const resultsInfoMsg = document.getElementById('resultsInfoMsg');
     const dataForm = document.getElementById('dataForm');
     const resultsForm = document.getElementById('resultsForm');
     const submitBetBtn = document.getElementById('submitBetBtn');
-    const getResultsBtn = document.getElementById('getResultsBtn');
-    const resultsTableBody = document.getElementById('resultsTableBody');
 
     const raceSelect = document.getElementById('options');
     const resultRaceSelect = document.getElementById('resultOptions');
@@ -485,15 +445,11 @@
     document.addEventListener('DOMContentLoaded', loadRaces);
 
     raceSelect.addEventListener('change', () => summaryDiv.style.display = 'none');
-    resultRaceSelect.addEventListener('change', () => {
-      resultsSummary.style.display = 'none';
-      resultsInfoMsg.style.display = 'none';
-    });
+    resultRaceSelect.addEventListener('change', () => resultsSummary.style.display = 'none');
 
     function resetViewState() {
       summaryDiv.style.display = 'none';
       resultsSummary.style.display = 'none';
-      resultsInfoMsg.style.display = 'none';
       dataForm.reset();
       resultsForm.reset();
     }
@@ -645,70 +601,12 @@
       });
     });
 
-    // ERGEBNISSE ABSENDEN & LADEN (Meldung unter dem Button statt Pop-Up)
+    // ERGEBNISSE ABSENDEN
     resultsForm.addEventListener('submit', function (event) {
       event.preventDefault();
       const resOption = resultRaceSelect.value;
-
-      getResultsBtn.disabled = true;
-      getResultsBtn.textContent = 'Lade Ergebnisse...';
-      resultsSummary.style.display = 'none';
-      resultsInfoMsg.style.display = 'none';
-
-      fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({
-          action: "getResults",
-          rennen: resOption
-        })
-      })
-      .then(response => response.json())
-      .then(res => {
-        getResultsBtn.disabled = false;
-        getResultsBtn.textContent = 'Ergebnisse abfragen';
-
-        if (res.status === "success" && Array.isArray(res.ergebnisse)) {
-          document.getElementById('resOption').textContent = resOption;
-          resultsTableBody.innerHTML = "";
-
-          if (res.ergebnisse.length === 0) {
-            resultsTableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Keine Ergebnisse vorhanden.</td></tr>';
-          } else {
-            res.ergebnisse.forEach(row => {
-              const tr = document.createElement('tr');
-              tr.innerHTML = `
-                <td><strong>${row.name || '-'}</strong></td>
-                <td>${row.platz1 || '-'}</td>
-                <td>${row.platz2 || '-'}</td>
-                <td>${row.platz3 || '-'}</td>
-              `;
-              resultsTableBody.appendChild(tr);
-            });
-          }
-
-          resultsSummary.style.display = 'block';
-        } else if (res.status === "not_available" || res.status === "pending") {
-          // Hinweis UNTER DEM BUTTON einblenden statt Pop-Up
-          resultsInfoMsg.textContent = res.message || "Für dieses Rennen wurden noch keine Ergebnisse eingetragen.";
-          resultsInfoMsg.className = "info-msg-box warning";
-          resultsInfoMsg.style.display = 'block';
-        } else {
-          // Fehlerhinweis unter dem Button einblenden
-          resultsInfoMsg.textContent = "Fehler: " + (res.message || "Bitte später erneut versuchen.");
-          resultsInfoMsg.className = "info-msg-box error";
-          resultsInfoMsg.style.display = 'block';
-        }
-      })
-      .catch(error => {
-        console.error("Fehler beim Abfragen der Ergebnisse:", error);
-        getResultsBtn.disabled = false;
-        getResultsBtn.textContent = 'Ergebnisse abfragen';
-        
-        resultsInfoMsg.textContent = "Verbindungsfehler beim Laden der Ergebnisse!";
-        resultsInfoMsg.className = "info-msg-box error";
-        resultsInfoMsg.style.display = 'block';
-      });
+      document.getElementById('resOption').textContent = resOption;
+      resultsSummary.style.display = 'block';
     });
   </script>
 
