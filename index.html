@@ -55,10 +55,14 @@
       margin-right: auto;
     }
 
+    .login-card label {
+      text-align: left;
+    }
+
     .login-card input {
       width: 100%;
       padding: 10px;
-      margin: 15px 0;
+      margin: 8px 0 15px 0;
       border: 1px solid #ccc;
       border-radius: 4px;
       box-sizing: border-box;
@@ -203,6 +207,11 @@
       background-color: #1b5e20;
     }
 
+    .submit-btn:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+
     /* Zusammenfassungs-Box */
     .summary-box {
       margin-top: 25px;
@@ -262,9 +271,13 @@
       <h2>Login</h2>
       <form id="loginForm">
         <label for="username">Benutzername:</label>
-        <input type="text" id="username" placeholder="Benutzername eingeben" required autofocus>
-        <div id="loginError" class="error-msg">Unbekannter Benutzername!</div>
-        <button type="submit" class="submit-btn">Anmelden</button>
+        <input type="text" id="username" placeholder="Benutzername eingeben" required autofocus autocomplete="username">
+        
+        <label for="password">Passwort:</label>
+        <input type="password" id="password" placeholder="Passwort eingeben" required autocomplete="current-password">
+        
+        <div id="loginError" class="error-msg">Benutzername oder Passwort falsch!</div>
+        <button type="submit" id="loginBtn" class="submit-btn">Anmelden</button>
       </form>
     </div>
   </div>
@@ -275,8 +288,7 @@
     <!-- User Status Anzeige -->
     <div class="user-header">
       <span>Eingeloggt als: <strong id="currentUserDisplay">-</strong></span>
-      <button onclick="logout()"
-        style="background:none; border:none; color:#d32f2f; cursor:pointer; font-weight:bold;">Abmelden</button>
+      <button onclick="logout()" style="background:none; border:none; color:#d32f2f; cursor:pointer; font-weight:bold;">Abmelden</button>
     </div>
 
     <!-- Reiter-Navigation -->
@@ -302,20 +314,20 @@
 
           <div class="form-group input-row">
             <div class="field">
-              <label for="val1">Platz 1:</label>
-              <input type="number" id="val1" step="any" min="0.0001" required>
+              <label for="val1">Platz 1 (Start-Nr.):</label>
+              <input type="number" id="val1" min="1" step="1" required>
             </div>
             <div class="field">
-              <label for="val2">Platz 2:</label>
-              <input type="number" id="val2" step="any" min="0.0001" required>
+              <label for="val2">Platz 2 (Start-Nr.):</label>
+              <input type="number" id="val2" min="1" step="1" required>
             </div>
             <div class="field">
-              <label for="val3">Platz 3:</label>
-              <input type="number" id="val3" step="any" min="0.0001" required>
+              <label for="val3">Platz 3 (Start-Nr.):</label>
+              <input type="number" id="val3" min="1" step="1" required>
             </div>
           </div>
 
-          <button type="submit" class="submit-btn">Eingaben bestätigen</button>
+          <button type="submit" id="submitBetBtn" class="submit-btn">Eingaben bestätigen</button>
         </form>
 
         <!-- Zusammenfassungsbereich -->
@@ -368,31 +380,11 @@
             </tr>
           </thead>
           <tbody id="tableBody">
-            <tr>
-              <td>1</td>
-              <td>Thomas</td>
-              <td>0</td>
-            </tr>
-            <tr>
-              <td>2</td>
-              <td>Alex</td>
-              <td>0</td>
-            </tr>
-            <tr>
-              <td>3</td>
-              <td>Schorles</td>
-              <td>0</td>
-            </tr>
-            <tr>
-              <td>4</td>
-              <td>Bernhard</td>
-              <td>0</td>
-            </tr>
-            <tr>
-              <td>5</td>
-              <td>Corni</td>
-              <td>0</td>
-            </tr>
+            <tr><td>1</td><td>Thomas</td><td>0</td></tr>
+            <tr><td>2</td><td>Alex</td><td>0</td></tr>
+            <tr><td>3</td><td>Schorles</td><td>0</td></tr>
+            <tr><td>4</td><td>Bernhard</td><td>0</td></tr>
+            <tr><td>5</td><td>Corni</td><td>0</td></tr>
           </tbody>
         </table>
       </div>
@@ -401,23 +393,42 @@
 
     <!-- Visible Footer -->
     <footer class="app-footer">
-      <p>&copy; 2026 [Cornelius Mueller]. Alle Rechte vorbehalten.</p>
+      <p>&copy; 2026 Cornelius Müller. Alle Rechte vorbehalten.</p>
     </footer>
 
   </div>
 
   <script>
-    // URL zu deinem Google Apps Script Backend
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwra9Pp0CQiEqVOS1n27YiLfxkhdc5ytWsH8O7C85dvXviMIpHE9xvkBhID2sIiKhwj/exec";
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz0Hg2qMX5koXsjDqC7Fx1yLfBJ5GC5jxwOopue_5IKG9nK703T-gXT620DEkxOMoFQ/exec";
 
+    let loggedInUser = "";
+
+    const loginForm = document.getElementById('loginForm');
+    const loginOverlay = document.getElementById('loginOverlay');
+    const appContent = document.getElementById('appContent');
+    const loginError = document.getElementById('loginError');
+    const loginBtn = document.getElementById('loginBtn');
+    const currentUserDisplay = document.getElementById('currentUserDisplay');
+
+    const summaryDiv = document.getElementById('summary');
+    const resultsSummary = document.getElementById('resultsSummary');
+    const dataForm = document.getElementById('dataForm');
+    const resultsForm = document.getElementById('resultsForm');
+    const submitBetBtn = document.getElementById('submitBetBtn');
+
+    const raceSelect = document.getElementById('options');
+    const resultRaceSelect = document.getElementById('resultOptions');
+    const input1 = document.getElementById('val1');
+    const input2 = document.getElementById('val2');
+    const input3 = document.getElementById('val3');
+
+    // Rennen laden
     function loadRaces() {
       fetch(GOOGLE_SCRIPT_URL)
         .then(response => response.json())
         .then(res => {
           if (res.status === "success" && Array.isArray(res.rennen)) {
-            const selects = [document.getElementById('options'), document.getElementById('resultOptions')];
-
-            selects.forEach(select => {
+            [raceSelect, resultRaceSelect].forEach(select => {
               select.innerHTML = '<option value="" disabled selected>Bitte wählen...</option>';
               res.rennen.forEach(rennenName => {
                 const opt = document.createElement('option');
@@ -431,38 +442,11 @@
         .catch(error => console.error('Fehler beim Laden der Rennen:', error));
     }
 
-    // Aufrufen, sobald die Seite fertig geladen ist
     document.addEventListener('DOMContentLoaded', loadRaces);
 
-    // Liste aller gültigen Benutzernamen
-    const allowedUsers = ["MCorn", "GBern", "SThom", "ADomi", "HAlex"];
-    let loggedInUser = "";
+    raceSelect.addEventListener('change', () => summaryDiv.style.display = 'none');
+    resultRaceSelect.addEventListener('change', () => resultsSummary.style.display = 'none');
 
-    const loginForm = document.getElementById('loginForm');
-    const loginOverlay = document.getElementById('loginOverlay');
-    const appContent = document.getElementById('appContent');
-    const loginError = document.getElementById('loginError');
-    const currentUserDisplay = document.getElementById('currentUserDisplay');
-
-    const summaryDiv = document.getElementById('summary');
-    const resultsSummary = document.getElementById('resultsSummary');
-    const dataForm = document.getElementById('dataForm');
-    const resultsForm = document.getElementById('resultsForm');
-
-    // Dropdowns
-    const raceSelect = document.getElementById('options');
-    const resultRaceSelect = document.getElementById('resultOptions');
-
-    // Zusammenfassung ausblenden, sobald ein anderes Rennen gewählt wird
-    raceSelect.addEventListener('change', function () {
-      summaryDiv.style.display = 'none';
-    });
-
-    resultRaceSelect.addEventListener('change', function () {
-      resultsSummary.style.display = 'none';
-    });
-
-    // Hilfsfunktion zum Zurücksetzen/Ausblenden der Ansichten
     function resetViewState() {
       summaryDiv.style.display = 'none';
       resultsSummary.style.display = 'none';
@@ -470,38 +454,62 @@
       resultsForm.reset();
     }
 
+    // LOGIN
     loginForm.addEventListener('submit', function (event) {
       event.preventDefault();
+      
       const usernameInput = document.getElementById('username').value.trim();
+      const passwordInput = document.getElementById('password').value.trim();
 
-      const matchedUser = allowedUsers.find(u => u.toLowerCase() === usernameInput.toLowerCase());
+      loginError.style.display = 'none';
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Prüfe Daten...';
 
-      if (matchedUser) {
-        loggedInUser = matchedUser;
-        currentUserDisplay.textContent = loggedInUser;
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          action: "login",
+          username: usernameInput,
+          password: passwordInput
+        })
+      })
+      .then(response => response.json())
+      .then(res => {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Anmelden';
 
-        resetViewState();
-
-        loginOverlay.style.display = 'none';
-        appContent.style.display = 'block';
-        loginError.style.display = 'none';
-      } else {
+        if (res.status === "success") {
+          loggedInUser = res.username || usernameInput;
+          currentUserDisplay.textContent = loggedInUser;
+          resetViewState();
+          loginOverlay.style.display = 'none';
+          appContent.style.display = 'block';
+        } else {
+          loginError.textContent = res.message || "Benutzername oder Passwort falsch!";
+          loginError.style.display = 'block';
+        }
+      })
+      .catch(error => {
+        console.error("Fehler beim Login:", error);
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Anmelden';
+        loginError.textContent = "Verbindungsfehler beim Anmelden!";
         loginError.style.display = 'block';
-      }
+      });
     });
 
     function logout() {
       loggedInUser = "";
       document.getElementById('username').value = "";
+      document.getElementById('password').value = "";
       loginError.style.display = 'none';
-
       resetViewState();
-
       loginOverlay.style.display = 'flex';
       appContent.style.display = 'none';
     }
 
-    // Tab-Umschaltung
+    // TAB-STEUERUNG
     function openTab(evt, tabName) {
       const tabContents = document.getElementsByClassName("tab-content");
       for (let i = 0; i < tabContents.length; i++) {
@@ -517,15 +525,9 @@
       evt.currentTarget.classList.add("active");
     }
 
-    // JS für Wettschein-Formular
-    const input1 = document.getElementById('val1');
-    const input2 = document.getElementById('val2');
-    const input3 = document.getElementById('val3');
-
+    // FEHLERMELDUNGEN ZURÜCKSETZEN BEIM TIPPEN
     [input1, input2, input3].forEach(input => {
-      input.addEventListener('input', () => {
-        input.setCustomValidity('');
-      });
+      input.addEventListener('input', () => input.setCustomValidity(''));
     });
 
     // WETTSCHEIN ABSENDEN
@@ -537,37 +539,31 @@
       input3.setCustomValidity('');
 
       const selectedOption = raceSelect.value;
-      const v1 = parseFloat(input1.value);
-      const v2 = parseFloat(input2.value);
-      const v3 = parseFloat(input3.value);
+      const v1 = parseInt(input1.value, 10);
+      const v2 = parseInt(input2.value, 10);
+      const v3 = parseInt(input3.value, 10);
 
       if (v1 <= 0 || v2 <= 0 || v3 <= 0 || isNaN(v1) || isNaN(v2) || isNaN(v3)) {
-        alert("Bitte gib für alle drei Felder Werte ein, die größer als 0 sind.");
+        alert("Bitte gib für alle drei Felder gültige Zahlen ein.");
         return;
       }
 
       if (v1 === v2) {
-        input2.setCustomValidity('Wert muss sich von Platz 1 unterscheiden.');
+        input2.setCustomValidity('Platz 2 muss sich von Platz 1 unterscheiden.');
         input2.reportValidity();
         return;
       }
       if (v1 === v3 || v2 === v3) {
-        input3.setCustomValidity('Wert muss sich von den anderen Plätzen unterscheiden.');
+        input3.setCustomValidity('Platz 3 muss sich von Platz 1 und 2 unterscheiden.');
         input3.reportValidity();
         return;
       }
 
-      // 1. Zusammenfassung sofort anzeigen
-      document.getElementById('summaryUser').textContent = loggedInUser;
-      document.getElementById('selectedOption').textContent = selectedOption;
-      document.getElementById('summaryVal1').textContent = v1;
-      document.getElementById('summaryVal2').textContent = v2;
-      document.getElementById('summaryVal3').textContent = v3;
+      submitBetBtn.disabled = true;
+      submitBetBtn.textContent = 'Sende Wette...';
 
-      summaryDiv.style.display = 'block';
-
-      // 2. Daten an Google Apps Script im Hintergrund senden
       const payload = {
+        action: "saveBet",
         user: loggedInUser,
         rennen: selectedOption,
         platz1: v1,
@@ -577,27 +573,39 @@
 
       fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
-        mode: "no-cors",
-        headers: {
-          "Content-Type": "text/plain"
-        },
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload)
       })
-      .then(() => {
-        console.log("Wette erfolgreich abgesendet.");
+      .then(response => response.json())
+      .then(res => {
+        submitBetBtn.disabled = false;
+        submitBetBtn.textContent = 'Eingaben bestätigen';
+
+        if (res.status === "success") {
+          document.getElementById('summaryUser').textContent = loggedInUser;
+          document.getElementById('selectedOption').textContent = selectedOption;
+          document.getElementById('summaryVal1').textContent = v1;
+          document.getElementById('summaryVal2').textContent = v2;
+          document.getElementById('summaryVal3').textContent = v3;
+
+          summaryDiv.style.display = 'block';
+        } else {
+          alert("Fehler beim Speichern: " + (res.message || "Unbekannter Fehler"));
+        }
       })
       .catch(error => {
         console.error("Fehler beim Übertragen der Wette:", error);
+        submitBetBtn.disabled = false;
+        submitBetBtn.textContent = 'Eingaben bestätigen';
+        alert("Verbindungsfehler beim Absenden der Wette!");
       });
     });
 
-    // JS für Ergebnisabfrage-Formular
+    // ERGEBNISSE ABSENDEN
     resultsForm.addEventListener('submit', function (event) {
       event.preventDefault();
-
       const resOption = resultRaceSelect.value;
       document.getElementById('resOption').textContent = resOption;
-
       resultsSummary.style.display = 'block';
     });
   </script>
