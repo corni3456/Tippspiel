@@ -1,0 +1,241 @@
+function doGet(e) {
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Grupperennen Deutschland") || SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+
+    var lastRow = sheet.getLastRow();
+
+    if (lastRow < 3) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "success", rennen: [] }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // Bereich von Zeile 1, Spalte 1 (A) bis lastRow, Spalte 130 (DZ) holen
+    var range = sheet.getRange(1, 1, lastRow, 130);
+    var data = range.getDisplayValues();
+
+    // Zeile 3 entspricht Index 2 (0-indiziert)
+    var row3 = data[2];
+    var rennenListe = [];
+
+    // Ab Spalte B (Index 1) in 3er-Schritten (B, E, H, ...) durchgehen
+    for (var i = 1; i < row3.length; i += 3) {
+      var rennenName = row3[i];
+      if (rennenName && rennenName.toString().trim() !== "") {
+        rennenListe.push(rennenName.toString().trim());
+      }
+    }
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: "success", rennen: rennenListe }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (error) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: "error", message: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doPost(e) {
+  try {
+    if (!e || !e.postData || !e.postData.contents) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "error", message: "Keine Daten empfangen." }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    var payload = JSON.parse(e.postData.contents);
+    var action = payload.action;
+
+    if (action === "getOverallTable") {
+      var overallSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Tabelle_sortiert");
+      if (!overallSheet) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "error", message: "Tabellenblatt 'Tabelle_sortiert' nicht gefunden." }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      var overallData = overallSheet.getRange("A2:E7").getDisplayValues();
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "success", tabelle: overallData }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 1. LOGIN PRÜFEN
+    if (action === "login") {
+      var userSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Users");
+      if (!userSheet) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "error", message: "Tabellenblatt 'Users' nicht gefunden." }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      var values = userSheet.getDataRange().getValues();
+
+      for (var i = 1; i < values.length; i++) {
+        var dbUser = values[i][0]; // Spalte A: Username
+        var dbPass = values[i][1]; // Spalte B: Password
+
+        if (dbUser && dbPass && 
+            dbUser.toString().toLowerCase() === payload.username.toString().toLowerCase() && 
+            dbPass.toString() === payload.password.toString()) {
+          
+          return ContentService
+            .createTextOutput(JSON.stringify({ status: "success", username: dbUser }))
+            .setMimeType(ContentService.MimeType.JSON);
+        }
+      }
+
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "error", message: "Benutzername oder Passwort falsch!" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 2. ERGEBNISSE FÜR EIN RENNEN ABFRAGEN (Prüfung auf Ergebnisse in Zeile 7)
+    if (action === "getResults") {
+      var betSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Grupperennen Deutschland") || SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+      var targetRace = payload.rennen;
+
+      var allData = betSheet.getDataRange().getDisplayValues();
+
+      // Rennen in Zeile 3 (Index 2 im Array) suchen
+      var raceRow = allData[2];
+      var raceColIndex = -1;
+
+      for (var c = 0; c < raceRow.length; c++) {
+        if (raceRow[c] && raceRow[c].toString().trim() === targetRace.trim()) {
+          raceColIndex = c;
+          break;
+        }
+      }
+
+      if (raceColIndex === -1) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "error", message: "Rennen '" + targetRace + "' in Zeile 3 nicht gefunden." }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      // --- PRÜFUNG ZEILE 7 ---
+      // Zeile 7 ist Index 6 im Array.
+      // Wir prüfen die 3 Spalten des Rennens in Zeile 7.
+      var row7 = allData[6] || [];
+      var res7_p1 = (row7[raceColIndex] || "").toString().trim();
+      var res7_p2 = (row7[raceColIndex + 1] || "").toString().trim();
+      var res7_p3 = (row7[raceColIndex + 2] || "").toString().trim();
+
+      // Falls alle 3 Plätze in Zeile 7 leer sind, wurden noch keine Ergebnisse eingetragen
+      if (!res7_p1 && !res7_p2 && !res7_p3) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ 
+            status: "not_available", 
+            message: "Für dieses Rennen wurden noch keine Ergebnisse eingetragen." 
+          }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      // Zeilen 7 bis 22 auslesen (Index 5 bis 21 im Array)
+      var resultsData = [];
+      var startRowIndex = 6; // Zeile 7
+      var endRowIndex = Math.min(21, allData.length - 1); // Zeile 22
+
+      for (var r = startRowIndex; r <= endRowIndex; r++) {
+        var row = allData[r];
+        var spielerName = row[0] || "";       // Spalte A (Spielername)
+        var p1 = row[raceColIndex] || "";     // Platz 1 des Rennens
+        var p2 = row[raceColIndex + 1] || ""; // Platz 2 des Rennens
+        var p3 = row[raceColIndex + 2] || ""; // Platz 3 des Rennens
+
+        // Nur eintragen, wenn der Spielername oder Plätze vorhanden sind
+        if (spielerName || p1 || p2 || p3) {
+          resultsData.push({
+            name: spielerName,
+            platz1: p1,
+            platz2: p2,
+            platz3: p3
+          });
+        }
+      }
+
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "success", rennen: targetRace, ergebnisse: resultsData }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 3. WETTSCHEIN SPEICHERN
+    if (action === "saveBet" || !action) {
+      var betSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Grupperennen Deutschland") || SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+
+      // Zuordnung von Kürzel auf Name in Spalte A
+      var userMapping = {
+        "MCorn": "Corni",
+        "GBern": "Bernhard",
+        "SThom": "Thomas",
+        "ADomi": "Schorles",
+        "HAlex": "Alex"
+      };
+
+      var targetUser = userMapping[payload.user] || payload.user;
+      var targetRace = payload.rennen;
+
+      var allData = betSheet.getDataRange().getDisplayValues();
+
+      // Zeile des Benutzers in Spalte A suchen
+      var userRowIndex = -1;
+      for (var r = 0; r < allData.length; r++) {
+        if (allData[r][0] && allData[r][0].toString().trim().toLowerCase() === targetUser.toLowerCase()) {
+          userRowIndex = r + 1; // 1-basierter Zeilenindex für getRange
+          break;
+        }
+      }
+
+      if (userRowIndex === -1) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "error", message: "Benutzer '" + targetUser + "' in Spalte A nicht gefunden." }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      // Spalte des Rennens in Zeile 3 suchen
+      var raceRow = allData[2]; // Zeile 3 ist Index 2
+      var raceColIndex = -1;
+      for (var c = 0; c < raceRow.length; c++) {
+        if (raceRow[c] && raceRow[c].toString().trim() === targetRace.trim()) {
+          raceColIndex = c + 1; // 1-basierter Spaltenindex für getRange
+          break;
+        }
+      }
+
+      if (raceColIndex === -1) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "error", message: "Rennen '" + targetRace + "' in Zeile 3 nicht gefunden." }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      // Wetten sind nicht mehr möglich, sobald in Zeile 7 Ergebnisse stehen.
+      var resultRow = allData[6] || [];
+      var result1 = (resultRow[raceColIndex - 1] || "").toString().trim();
+      var result2 = (resultRow[raceColIndex] || "").toString().trim();
+      var result3 = (resultRow[raceColIndex + 1] || "").toString().trim();
+
+      if (result1 || result2 || result3) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "race_closed", message: "Zuspät! Rennen bereits gelaufen." }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      // Werte eintragen (Platz 1, Platz 2, Platz 3)
+      betSheet.getRange(userRowIndex, raceColIndex).setValue(payload.platz1);
+      betSheet.getRange(userRowIndex, raceColIndex + 1).setValue(payload.platz2);
+      betSheet.getRange(userRowIndex, raceColIndex + 2).setValue(payload.platz3);
+
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "success" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+  } catch (error) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: "error", message: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
