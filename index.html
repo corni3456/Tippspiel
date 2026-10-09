@@ -516,6 +516,8 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
 
                 </form>
 
+                <div id="betInfoMsg" class="info-msg-box error" role="alert"></div>
+
 
 
                 <!-- Zusammenfassungsbereich -->
@@ -662,7 +664,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
 
 
     <script>
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx5BSb4voHls2UHCWSFlFEGFa5MdwWzeldHzantxpvSdXqKMPElWawE-9BPsv6-G_3q/exec";
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwZ2G8jNLRYp-0GHVIiXLzh2t7AnFUK7mQoz5uiAMJwYFic-6qKRoawQd5OJ5mOityZ/exec";
         let loggedInUser = "";
         const loginForm = document.getElementById('loginForm');
         const loginOverlay = document.getElementById('loginOverlay');
@@ -671,6 +673,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
         const loginBtn = document.getElementById('loginBtn');
         const currentUserDisplay = document.getElementById('currentUserDisplay');
         const summaryDiv = document.getElementById('summary');
+        const betInfoMsg = document.getElementById('betInfoMsg');
         const resultsSummary = document.getElementById('resultsSummary');
         const resultsInfoMsg = document.getElementById('resultsInfoMsg');
         const dataForm = document.getElementById('dataForm');
@@ -778,7 +781,10 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
         document.addEventListener('DOMContentLoaded', () => {
             loadRaces();
         });
-        raceSelect.addEventListener('change', () => summaryDiv.style.display = 'none');
+        raceSelect.addEventListener('change', () => {
+            summaryDiv.style.display = 'none';
+            betInfoMsg.style.display = 'none';
+        });
         resultRaceSelect.addEventListener('change', () => {
             resultsSummary.style.display = 'none';
             resultsInfoMsg.style.display = 'none';
@@ -786,6 +792,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
 
         function resetViewState() {
             summaryDiv.style.display = 'none';
+            betInfoMsg.style.display = 'none';
             resultsSummary.style.display = 'none';
             resultsInfoMsg.style.display = 'none';
             dataForm.reset();
@@ -894,6 +901,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                 return;
             }
 
+            betInfoMsg.style.display = 'none';
             submitBetBtn.disabled = true;
             submitBetBtn.textContent = 'Sende Wette...';
 
@@ -917,12 +925,16 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                     submitBetBtn.textContent = 'Eingaben bestätigen';
 
                     if (res.status === "success") {
+                        betInfoMsg.style.display = 'none';
                         document.getElementById('summaryUser').textContent = loggedInUser;
                         document.getElementById('selectedOption').textContent = selectedOption;
                         document.getElementById('summaryVal1').textContent = v1;
                         document.getElementById('summaryVal2').textContent = v2;
                         document.getElementById('summaryVal3').textContent = v3;
                         summaryDiv.style.display = 'block';
+                    } else if (res.status === "race_closed") {
+                        betInfoMsg.textContent = res.message;
+                        betInfoMsg.style.display = 'block';
                     } else {
                         alert("Fehler beim Speichern: " + (res.message || "Unbekannter Fehler"));
                     }

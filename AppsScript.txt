@@ -211,6 +211,18 @@ function doPost(e) {
           .setMimeType(ContentService.MimeType.JSON);
       }
 
+      // Wetten sind nicht mehr möglich, sobald in Zeile 7 Ergebnisse stehen.
+      var resultRow = allData[6] || [];
+      var result1 = (resultRow[raceColIndex - 1] || "").toString().trim();
+      var result2 = (resultRow[raceColIndex] || "").toString().trim();
+      var result3 = (resultRow[raceColIndex + 1] || "").toString().trim();
+
+      if (result1 || result2 || result3) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "race_closed", message: "Zuspät! Rennen bereits gelaufen." }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
       // Werte eintragen (Platz 1, Platz 2, Platz 3)
       betSheet.getRange(userRowIndex, raceColIndex).setValue(payload.platz1);
       betSheet.getRange(userRowIndex, raceColIndex + 1).setValue(payload.platz2);
