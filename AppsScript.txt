@@ -134,9 +134,9 @@ function doPost(e) {
           .setMimeType(ContentService.MimeType.JSON);
       }
 
-      // Zeilen 6 bis 22 auslesen (Index 5 bis 21 im Array)
+      // Zeilen 7 bis 22 auslesen (Index 5 bis 21 im Array)
       var resultsData = [];
-      var startRowIndex = 5; // Zeile 6
+      var startRowIndex = 6; // Zeile 7
       var endRowIndex = Math.min(21, allData.length - 1); // Zeile 22
 
       for (var r = startRowIndex; r <= endRowIndex; r++) {
