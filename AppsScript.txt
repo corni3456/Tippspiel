@@ -162,7 +162,73 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    // 3. WETTSCHEIN SPEICHERN
+    // 3. VORHANDENEN WETTSCHEIN ABFRAGEN
+    if (action === "getBet") {
+      var betSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Grupperennen Deutschland") || SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+      var userMapping = {
+        "MCorn": "Corni",
+        "GBern": "Bernhard",
+        "SThom": "Thomas",
+        "ADomi": "Schorles",
+        "HAlex": "Alex"
+      };
+      var targetUser = userMapping[payload.user] || payload.user;
+      var targetRace = payload.rennen;
+      var allData = betSheet.getDataRange().getDisplayValues();
+
+      var userRowIndex = -1;
+      for (var r = 0; r < allData.length; r++) {
+        if (allData[r][0] && allData[r][0].toString().trim().toLowerCase() === targetUser.toString().trim().toLowerCase()) {
+          userRowIndex = r;
+          break;
+        }
+      }
+
+      if (userRowIndex === -1) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "error", message: "Benutzer '" + targetUser + "' in Spalte A nicht gefunden." }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      var raceRow = allData[2] || [];
+      var raceColIndex = -1;
+      for (var c = 0; c < raceRow.length; c++) {
+        if (raceRow[c] && raceRow[c].toString().trim() === targetRace.toString().trim()) {
+          raceColIndex = c;
+          break;
+        }
+      }
+
+      if (raceColIndex === -1) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "error", message: "Rennen '" + targetRace + "' in Zeile 3 nicht gefunden." }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      var betRow = allData[userRowIndex];
+      var platz1 = betRow[raceColIndex] || "";
+      var platz2 = betRow[raceColIndex + 1] || "";
+      var platz3 = betRow[raceColIndex + 2] || "";
+
+      if (!platz1 && !platz2 && !platz3) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "no_bet" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      return ContentService
+        .createTextOutput(JSON.stringify({
+          status: "success",
+          user: targetUser,
+          rennen: targetRace,
+          platz1: platz1,
+          platz2: platz2,
+          platz3: platz3
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 4. WETTSCHEIN SPEICHERN
     if (action === "saveBet" || !action) {
       var betSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Grupperennen Deutschland") || SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
 
