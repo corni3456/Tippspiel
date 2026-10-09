@@ -48,6 +48,20 @@ function doPost(e) {
     var payload = JSON.parse(e.postData.contents);
     var action = payload.action;
 
+    if (action === "getOverallTable") {
+      var overallSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Gesamtergebnis");
+      if (!overallSheet) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "error", message: "Tabellenblatt 'Gesamtergebnis' nicht gefunden." }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      var overallData = overallSheet.getRange("A2:E7").getDisplayValues();
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "success", tabelle: overallData }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     // 1. LOGIN PRÜFEN
     if (action === "login") {
       var userSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Users");
