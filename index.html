@@ -315,6 +315,17 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
             width: auto;
         }
 
+        .overall-table th,
+        .overall-table td {
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .race-results-table th:nth-child(n+2),
+        .race-results-table td:nth-child(n+2) {
+            text-align: center;
+        }
+
         .standings-table-compact {
             font-size: 12px;
             width: 70%;
@@ -578,7 +589,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                     <h3>Ergebnisse für: <span id="resOption">-</span></h3>
 
                     <div class="results-table-wrapper">
-                        <table class="standings-table">
+                        <table class="standings-table race-results-table">
 
                             <thead>
 
@@ -615,7 +626,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
 
             <div id="tabelle" class="tab-content">
 
-                <h2>Gesamttabelle</h2>
+                <h2>Tabelle</h2>
 
                 <p>Aktueller Punktestand:</p>
 
@@ -700,7 +711,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
             const requestId = ++overallTableRequestId;
             overallTableHead.innerHTML = "";
             overallTableBody.innerHTML = "";
-            tableInfoMsg.textContent = "Lade Gesamttabelle...";
+            tableInfoMsg.textContent = "Lade Tabelle...";
             tableInfoMsg.className = "info-msg-box warning";
             tableInfoMsg.style.display = 'block';
 
@@ -722,11 +733,11 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                     }
 
                     if (res.status !== "success" || !Array.isArray(res.tabelle)) {
-                        throw new Error(res.message || "Ungültige Antwort beim Laden der Gesamttabelle.");
+                        throw new Error(res.message || "Ungültige Antwort beim Laden der Tabelle.");
                     }
 
                     if (res.tabelle.length !== 6 || res.tabelle.some(row => !Array.isArray(row) || row.length !== 5)) {
-                        throw new Error("Die Gesamttabelle enthält nicht den erwarteten Bereich A2:E7.");
+                        throw new Error("Die Tabelle enthält nicht den erwarteten Bereich A2:E7.");
                     }
 
                     overallTableHead.innerHTML = "";
@@ -757,8 +768,8 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                         return;
                     }
 
-                    console.error("Fehler beim Laden der Gesamttabelle:", error);
-                    tableInfoMsg.textContent = "Fehler beim Laden der Gesamttabelle: " + error.message;
+                    console.error("Fehler beim Laden der Tabelle:", error);
+                    tableInfoMsg.textContent = "Fehler beim Laden der Tabelle: " + error.message;
                     tableInfoMsg.className = "info-msg-box error";
                     tableInfoMsg.style.display = 'block';
                 });
