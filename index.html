@@ -686,7 +686,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
 
 
     <script>
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZkfuA-L217ryFLJUPPFDrO24CbBQFWVH6J-OJuecKSnFY4c_6g5pTOv1tQY2JMREN/exec";
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyNjfNpnO-1697JYyKBOEaYXxSekuJJKOU6eCl-_xqH9_GbGpKRheSbryD42nG8R6sP/exec";
         const AUTH_TOKEN_STORAGE_KEY = 'tippspielAuthToken';
         let loggedInUser = "";
         let authToken = "";
@@ -945,7 +945,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
         loginForm.addEventListener('submit', function (event) {
             event.preventDefault();
             const usernameInput = document.getElementById('username').value.trim();
-            const passwordInput = document.getElementById('password').value.trim();
+            const passwordInput = document.getElementById('password').value;
             loginError.style.display = 'none';
             loginBtn.disabled = true;
             loginBtn.textContent = 'Prüfe Daten...';
