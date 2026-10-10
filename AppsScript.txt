@@ -125,7 +125,8 @@ function doPost(e) {
     var action = payload.action;
 
     var authenticatedUsername = null;
-    if (action === "validateSession" || action === "getBet" || action === "saveBet") {
+    if (action === "validateSession" || action === "getBet" || action === "saveBet" ||
+        action === "getResults" || action === "getOverallTable") {
       authenticatedUsername = getAuthenticatedUsername_(payload.token);
       if (!authenticatedUsername) {
         return jsonResponse_({ status: "unauthorized", message: "Sitzung ungültig oder abgelaufen." });
