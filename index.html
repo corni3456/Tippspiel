@@ -29,7 +29,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
         body {
             font-family: Arial, sans-serif;
             max-width: 800px;
-            margin: 40px auto;
+            margin: 0px auto;
             padding: 20px;
             background-color: #ffffff;
             color: #333333;
@@ -94,6 +94,17 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
         /* Hauptinhalt standardmäßig ausblenden */
         .app-content {
             display: none;
+        }
+
+        .rules-link-row {
+            margin-bottom: 16px;
+            text-align: right;
+        }
+
+        .rules-link {
+            color: #1b5e20;
+            font-size: 12px;
+            text-decoration: underline;
         }
 
         /* Status-Header für den eingeloggten User */
@@ -261,7 +272,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
 
         /* Zusammenfassungs-Box */
         .summary-box {
-            margin-top: 25px;
+            margin-top: 20px;
             padding: 15px 20px;
             background-color: #ffffff;
             border: 1px solid #ccc;
@@ -395,11 +406,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
     </style>
 </head>
 
-
-
 <body>
-
-
 
     <!-- Login Overlay -->
 
@@ -435,13 +442,13 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
 
     </div>
 
-
-
     <!-- Haupt-Anwendung -->
 
     <div id="appContent" class="app-content">
 
-
+        <div class="rules-link-row">
+            <a class="rules-link" href="./spielregeln.html">Spielregeln</a>
+        </div>
 
         <!-- User Status Anzeige -->
 
@@ -453,8 +460,6 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                 style="background:none; border:none; color:#d32f2f; cursor:pointer; font-weight:bold;">Abmelden</button>
 
         </div>
-
-
 
         <!-- Reiter-Navigation -->
 
@@ -468,11 +473,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
 
         </div>
 
-
-
         <div class="form-container">
-
-
 
             <!-- TAB 1: Wettschein -->
 
@@ -481,8 +482,6 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                 <h2>Wettschein</h2>
 
                 <form id="dataForm">
-
-
 
                     <div class="form-group">
 
