@@ -686,7 +686,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
 
 
     <script>
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyqaVxjnaP__UNqOKgPZdksjRjkO5PklTRItB2UeihDMiPLm1ODF8Lv7XVlYJ8BdBNC/exec";
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZkfuA-L217ryFLJUPPFDrO24CbBQFWVH6J-OJuecKSnFY4c_6g5pTOv1tQY2JMREN/exec";
         const AUTH_TOKEN_STORAGE_KEY = 'tippspielAuthToken';
         let loggedInUser = "";
         let authToken = "";
@@ -822,7 +822,10 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                 method: "POST",
                 headers: { "Content-Type": "text/plain;charset=utf-8" },
                 cache: "no-store",
-                body: JSON.stringify({ action: "getOverallTable" })
+                body: JSON.stringify({
+                    action: "getOverallTable",
+                    token: authToken
+                })
             })
                 .then(response => {
                     if (!response.ok) {
@@ -832,6 +835,11 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                 })
                 .then(res => {
                     if (requestId !== overallTableRequestId) {
+                        return;
+                    }
+
+                    if (res.status === "unauthorized") {
+                        logout(res.message || "Sitzung abgelaufen. Bitte erneut anmelden.");
                         return;
                     }
 
@@ -1097,6 +1105,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                 headers: { "Content-Type": "text/plain;charset=utf-8" },
                 body: JSON.stringify({
                     action: "getResults",
+                    token: authToken,
                     rennen: resOption
                 })
             })
@@ -1104,6 +1113,11 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                 .then(res => {
                     getResultsBtn.disabled = false;
                     getResultsBtn.textContent = 'Ergebnisse abfragen';
+
+                    if (res.status === "unauthorized") {
+                        logout(res.message || "Sitzung abgelaufen. Bitte erneut anmelden.");
+                        return;
+                    }
 
                     if (res.status === "success" && Array.isArray(res.ergebnisse)) {
                         document.getElementById('resOption').textContent = resOption;
