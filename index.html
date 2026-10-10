@@ -680,8 +680,10 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
 
 
     <script>
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwvLC92X4ZBLGNIRUAtcvCyv2RUsnduoWGpHhw-zJeub_Gc5qb3jCk2ldYavTeGI1s/exec";
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyqaVxjnaP__UNqOKgPZdksjRjkO5PklTRItB2UeihDMiPLm1ODF8Lv7XVlYJ8BdBNC/exec";
+        const AUTH_TOKEN_STORAGE_KEY = 'tippspielAuthToken';
         let loggedInUser = "";
+        let authToken = "";
         const loginForm = document.getElementById('loginForm');
         const loginOverlay = document.getElementById('loginOverlay');
         const appContent = document.getElementById('appContent');
@@ -708,6 +710,20 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
         let overallTableRequestId = 0;
         let betLookupRequestId = 0;
 
+        function establishSession(username, token, persistToken) {
+            if (persistToken) {
+                sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+            }
+
+            loggedInUser = username;
+            authToken = token;
+            currentUserDisplay.textContent = loggedInUser;
+            resetViewState();
+            loginError.style.display = 'none';
+            loginOverlay.style.display = 'none';
+            appContent.style.display = 'block';
+        }
+
         function showBetSummary(user, race, platz1, platz2, platz3) {
             document.getElementById('summaryUser').textContent = user;
             document.getElementById('selectedOption').textContent = race;
@@ -733,7 +749,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                 cache: "no-store",
                 body: JSON.stringify({
                     action: "getBet",
-                    user: loggedInUser,
+                    token: authToken,
                     rennen: selectedOption
                 })
             })
@@ -745,6 +761,11 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                 })
                 .then(res => {
                     if (requestId !== betLookupRequestId || raceSelect.value !== selectedOption) {
+                        return;
+                    }
+
+                    if (res.status === "unauthorized") {
+                        logout(res.message || "Sitzung abgelaufen. Bitte erneut anmelden.");
                         return;
                     }
 
@@ -853,6 +874,41 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
 
         document.addEventListener('DOMContentLoaded', () => {
             loadRaces();
+
+            const savedToken = sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+            if (!savedToken) {
+                return;
+            }
+
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                cache: "no-store",
+                body: JSON.stringify({
+                    action: "validateSession",
+                    token: savedToken
+                })
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("HTTP " + response.status);
+                    }
+                    return response.json();
+                })
+                .then(res => {
+                    if (res.status === "success" && res.username) {
+                        establishSession(res.username, savedToken, false);
+                    } else if (res.status === "unauthorized") {
+                        sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+                    } else {
+                        throw new Error(res.message || "Die gespeicherte Sitzung konnte nicht geprüft werden.");
+                    }
+                })
+                .catch(error => {
+                    console.error("Fehler beim Wiederherstellen der Sitzung:", error);
+                    loginError.textContent = "Gespeicherte Sitzung konnte nicht geprüft werden. Bitte Verbindung prüfen oder erneut anmelden.";
+                    loginError.style.display = 'block';
+                });
         });
         raceSelect.addEventListener('change', () => {
             loadExistingBet();
@@ -883,6 +939,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
             fetch(GOOGLE_SCRIPT_URL, {
                 method: "POST",
                 headers: { "Content-Type": "text/plain;charset=utf-8" },
+                cache: "no-store",
                 body: JSON.stringify({
                     action: "login",
                     username: usernameInput,
@@ -895,11 +952,10 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                     loginBtn.textContent = 'Anmelden';
 
                     if (res.status === "success") {
-                        loggedInUser = res.username || usernameInput;
-                        currentUserDisplay.textContent = loggedInUser;
-                        resetViewState();
-                        loginOverlay.style.display = 'none';
-                        appContent.style.display = 'block';
+                        if (!res.token || !res.username) {
+                            throw new Error("Der Server hat kein gültiges Anmelde-Token zurückgegeben.");
+                        }
+                        establishSession(res.username, res.token, true);
                     } else {
                         loginError.textContent = res.message || "Benutzername oder Passwort falsch!";
                         loginError.style.display = 'block';
@@ -914,11 +970,14 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                 });
         });
 
-        function logout() {
+        function logout(message) {
+            sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
             loggedInUser = "";
+            authToken = "";
             document.getElementById('username').value = "";
             document.getElementById('password').value = "";
-            loginError.style.display = 'none';
+            loginError.textContent = message || "Benutzername oder Passwort falsch!";
+            loginError.style.display = message ? 'block' : 'none';
             resetViewState();
             loginOverlay.style.display = 'flex';
             appContent.style.display = 'none';
@@ -980,7 +1039,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
 
             const payload = {
                 action: "saveBet",
-                user: loggedInUser,
+                token: authToken,
                 rennen: selectedOption,
                 platz1: v1,
                 platz2: v2,
@@ -990,6 +1049,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
             fetch(GOOGLE_SCRIPT_URL, {
                 method: "POST",
                 headers: { "Content-Type": "text/plain;charset=utf-8" },
+                cache: "no-store",
                 body: JSON.stringify(payload)
             })
                 .then(response => response.json())
@@ -997,7 +1057,9 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                     submitBetBtn.disabled = false;
                     submitBetBtn.textContent = 'Eingaben bestätigen';
 
-                    if (res.status === "success") {
+                    if (res.status === "unauthorized") {
+                        logout(res.message || "Sitzung abgelaufen. Bitte erneut anmelden.");
+                    } else if (res.status === "success") {
                         betInfoMsg.style.display = 'none';
                         showBetSummary(loggedInUser, selectedOption, v1, v2, v3);
                     } else if (res.status === "race_closed") {
@@ -1042,16 +1104,26 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                         resultsTableBody.innerHTML = "";
 
                         if (res.ergebnisse.length === 0) {
-                            resultsTableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Keine Ergebnisse vorhanden.</td></tr>';
+                            const emptyRow = document.createElement('tr');
+                            const emptyCell = document.createElement('td');
+                            emptyCell.colSpan = 4;
+                            emptyCell.style.textAlign = "center";
+                            emptyCell.textContent = "Keine Ergebnisse vorhanden.";
+                            emptyRow.appendChild(emptyCell);
+                            resultsTableBody.appendChild(emptyRow);
                         } else {
                             res.ergebnisse.forEach(row => {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `
-<td><strong>${row.name || '-'}</strong></td>
-<td>${row.platz1 || '-'}</td>
-<td>${row.platz2 || '-'}</td>
-<td>${row.platz3 || '-'}</td>
-`;
+                                const nameCell = document.createElement('td');
+                                const name = document.createElement('strong');
+                                name.textContent = row.name || '-';
+                                nameCell.appendChild(name);
+                                tr.appendChild(nameCell);
+                                [row.platz1, row.platz2, row.platz3].forEach(value => {
+                                    const cell = document.createElement('td');
+                                    cell.textContent = value || '-';
+                                    tr.appendChild(cell);
+                                });
                                 resultsTableBody.appendChild(tr);
                             });
                         }

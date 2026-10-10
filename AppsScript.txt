@@ -1,3 +1,87 @@
+function getAuthTokenSecret_() {
+  var properties = PropertiesService.getScriptProperties();
+  var secret = properties.getProperty("AUTH_TOKEN_SECRET");
+  if (secret) {
+    return secret;
+  }
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    secret = properties.getProperty("AUTH_TOKEN_SECRET");
+    if (!secret) {
+      secret = Utilities.getUuid() + Utilities.getUuid() + Utilities.getUuid();
+      properties.setProperty("AUTH_TOKEN_SECRET", secret);
+    }
+    return secret;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function encodeBase64Url_(value) {
+  return Utilities.base64EncodeWebSafe(Utilities.newBlob(value).getBytes()).replace(/=+$/, "");
+}
+
+function decodeBase64Url_(value) {
+  var base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  base64 += new Array((4 - base64.length % 4) % 4 + 1).join("=");
+  return Utilities.newBlob(Utilities.base64Decode(base64)).getDataAsString();
+}
+
+function createAuthToken_(username) {
+  var claims = {
+    sub: username,
+    exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60
+  };
+  var encodedClaims = encodeBase64Url_(JSON.stringify(claims));
+  var signature = Utilities.computeHmacSha256Signature(encodedClaims, getAuthTokenSecret_());
+  return encodedClaims + "." + Utilities.base64EncodeWebSafe(signature).replace(/=+$/, "");
+}
+
+function getAuthenticatedUsername_(token) {
+  if (typeof token !== "string" || token.length > 2048) {
+    return null;
+  }
+
+  var parts = token.split(".");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+    return null;
+  }
+
+  var expectedSignature = Utilities.base64EncodeWebSafe(
+    Utilities.computeHmacSha256Signature(parts[0], getAuthTokenSecret_())
+  ).replace(/=+$/, "");
+  if (parts[1].length !== expectedSignature.length) {
+    return null;
+  }
+
+  var signatureDifference = 0;
+  for (var i = 0; i < expectedSignature.length; i++) {
+    signatureDifference |= expectedSignature.charCodeAt(i) ^ parts[1].charCodeAt(i);
+  }
+  if (signatureDifference !== 0) {
+    return null;
+  }
+
+  try {
+    var claims = JSON.parse(decodeBase64Url_(parts[0]));
+    if (!claims.sub || typeof claims.sub !== "string" || !Number.isFinite(claims.exp) ||
+        claims.exp <= Math.floor(Date.now() / 1000)) {
+      return null;
+    }
+    return claims.sub;
+  } catch (error) {
+    return null;
+  }
+}
+
+function jsonResponse_(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
 function doGet(e) {
   try {
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Grupperennen Deutschland") || SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
@@ -5,9 +89,7 @@ function doGet(e) {
     var lastRow = sheet.getLastRow();
 
     if (lastRow < 3) {
-      return ContentService
-        .createTextOutput(JSON.stringify({ status: "success", rennen: [] }))
-        .setMimeType(ContentService.MimeType.JSON);
+      return jsonResponse_({ status: "success", rennen: [] });
     }
 
     // Bereich von Zeile 1, Spalte 1 (A) bis lastRow, Spalte 130 (DZ) holen
@@ -26,40 +108,42 @@ function doGet(e) {
       }
     }
 
-    return ContentService
-      .createTextOutput(JSON.stringify({ status: "success", rennen: rennenListe }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse_({ status: "success", rennen: rennenListe });
 
   } catch (error) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ status: "error", message: error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse_({ status: "error", message: error.toString() });
   }
 }
 
 function doPost(e) {
   try {
     if (!e || !e.postData || !e.postData.contents) {
-      return ContentService
-        .createTextOutput(JSON.stringify({ status: "error", message: "Keine Daten empfangen." }))
-        .setMimeType(ContentService.MimeType.JSON);
+      return jsonResponse_({ status: "error", message: "Keine Daten empfangen." });
     }
 
     var payload = JSON.parse(e.postData.contents);
     var action = payload.action;
 
+    var authenticatedUsername = null;
+    if (action === "validateSession" || action === "getBet" || action === "saveBet") {
+      authenticatedUsername = getAuthenticatedUsername_(payload.token);
+      if (!authenticatedUsername) {
+        return jsonResponse_({ status: "unauthorized", message: "Sitzung ungültig oder abgelaufen." });
+      }
+    }
+
+    if (action === "validateSession") {
+      return jsonResponse_({ status: "success", username: authenticatedUsername });
+    }
+
     if (action === "getOverallTable") {
       var overallSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Tabelle_sortiert");
       if (!overallSheet) {
-        return ContentService
-          .createTextOutput(JSON.stringify({ status: "error", message: "Tabellenblatt 'Tabelle_sortiert' nicht gefunden." }))
-          .setMimeType(ContentService.MimeType.JSON);
+        return jsonResponse_({ status: "error", message: "Tabellenblatt 'Tabelle_sortiert' nicht gefunden." });
       }
 
       var overallData = overallSheet.getRange("A2:E7").getDisplayValues();
-      return ContentService
-        .createTextOutput(JSON.stringify({ status: "success", tabelle: overallData }))
-        .setMimeType(ContentService.MimeType.JSON);
+      return jsonResponse_({ status: "success", tabelle: overallData });
     }
 
     // 1. LOGIN PRÜFEN
@@ -81,15 +165,12 @@ function doPost(e) {
             dbUser.toString().toLowerCase() === payload.username.toString().toLowerCase() && 
             dbPass.toString() === payload.password.toString()) {
           
-          return ContentService
-            .createTextOutput(JSON.stringify({ status: "success", username: dbUser }))
-            .setMimeType(ContentService.MimeType.JSON);
+          var token = createAuthToken_(dbUser.toString());
+          return jsonResponse_({ status: "success", username: dbUser, token: token });
         }
       }
 
-      return ContentService
-        .createTextOutput(JSON.stringify({ status: "error", message: "Benutzername oder Passwort falsch!" }))
-        .setMimeType(ContentService.MimeType.JSON);
+      return jsonResponse_({ status: "error", message: "Benutzername oder Passwort falsch!" });
     }
 
     // 2. ERGEBNISSE FÜR EIN RENNEN ABFRAGEN (Prüfung auf Ergebnisse in Zeile 7)
@@ -172,7 +253,7 @@ function doPost(e) {
         "ADomi": "Schorles",
         "HAlex": "Alex"
       };
-      var targetUser = userMapping[payload.user] || payload.user;
+      var targetUser = userMapping[authenticatedUsername] || authenticatedUsername;
       var targetRace = payload.rennen;
       var allData = betSheet.getDataRange().getDisplayValues();
 
@@ -229,7 +310,7 @@ function doPost(e) {
     }
 
     // 4. WETTSCHEIN SPEICHERN
-    if (action === "saveBet" || !action) {
+    if (action === "saveBet") {
       var betSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Grupperennen Deutschland") || SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
 
       // Zuordnung von Kürzel auf Name in Spalte A
@@ -241,8 +322,19 @@ function doPost(e) {
         "HAlex": "Alex"
       };
 
-      var targetUser = userMapping[payload.user] || payload.user;
+      var targetUser = userMapping[authenticatedUsername] || authenticatedUsername;
       var targetRace = payload.rennen;
+      var platz1Value = Number(payload.platz1);
+      var platz2Value = Number(payload.platz2);
+      var platz3Value = Number(payload.platz3);
+
+      if (typeof targetRace !== "string" || !targetRace.trim() ||
+          !Number.isInteger(platz1Value) || platz1Value <= 0 ||
+          !Number.isInteger(platz2Value) || platz2Value <= 0 ||
+          !Number.isInteger(platz3Value) || platz3Value <= 0 ||
+          platz1Value === platz2Value || platz1Value === platz3Value || platz2Value === platz3Value) {
+        return jsonResponse_({ status: "error", message: "Bitte ein Rennen und drei unterschiedliche positive Startnummern angeben." });
+      }
 
       var allData = betSheet.getDataRange().getDisplayValues();
 
@@ -290,18 +382,18 @@ function doPost(e) {
       }
 
       // Werte eintragen (Platz 1, Platz 2, Platz 3)
-      betSheet.getRange(userRowIndex, raceColIndex).setValue(payload.platz1);
-      betSheet.getRange(userRowIndex, raceColIndex + 1).setValue(payload.platz2);
-      betSheet.getRange(userRowIndex, raceColIndex + 2).setValue(payload.platz3);
+      betSheet.getRange(userRowIndex, raceColIndex).setValue(platz1Value);
+      betSheet.getRange(userRowIndex, raceColIndex + 1).setValue(platz2Value);
+      betSheet.getRange(userRowIndex, raceColIndex + 2).setValue(platz3Value);
 
       return ContentService
         .createTextOutput(JSON.stringify({ status: "success" }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    return jsonResponse_({ status: "error", message: "Unbekannte Aktion." });
+
   } catch (error) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ status: "error", message: error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse_({ status: "error", message: error.toString() });
   }
 }
