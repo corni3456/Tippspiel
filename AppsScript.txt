@@ -1,3 +1,10 @@
+var AUTH_TOKEN_LIFETIME_SECONDS_ = 2 * 60 * 60;
+var PASSWORD_HASH_SCHEME_ = "pbkdf2_sha256";
+var PASSWORD_HASH_MIN_ITERATIONS_ = 10000;
+var PASSWORD_HASH_ITERATIONS_ = 10000;
+var PASSWORD_HASH_MAX_ITERATIONS_ = 200000;
+var PASSWORD_MIGRATION_NEXT_ROW_PROPERTY_ = "PASSWORD_MIGRATION_NEXT_ROW";
+
 function getAuthTokenSecret_() {
   var properties = PropertiesService.getScriptProperties();
   var secret = properties.getProperty("AUTH_TOKEN_SECRET");
@@ -29,10 +36,110 @@ function decodeBase64Url_(value) {
   return Utilities.newBlob(Utilities.base64Decode(base64)).getDataAsString();
 }
 
+function encodeBytesBase64Url_(value) {
+  return Utilities.base64EncodeWebSafe(value).replace(/=+$/, "");
+}
+
+function hashPassword_(password, salt, iterations) {
+  var saltAndBlock = Utilities.newBlob(salt + "\x00\x00\x00\x01").getBytes();
+  var passwordBytes = Utilities.newBlob(password).getBytes();
+  var current = Utilities.computeHmacSha256Signature(saltAndBlock, passwordBytes);
+  var derivedKey = current.slice();
+
+  for (var iteration = 1; iteration < iterations; iteration++) {
+    current = Utilities.computeHmacSha256Signature(current, passwordBytes);
+    for (var byteIndex = 0; byteIndex < derivedKey.length; byteIndex++) {
+      var xorValue = (derivedKey[byteIndex] & 255) ^ (current[byteIndex] & 255);
+      derivedKey[byteIndex] = xorValue > 127 ? xorValue - 256 : xorValue;
+    }
+  }
+
+  return encodeBytesBase64Url_(derivedKey);
+}
+
+function createPasswordHash_(password) {
+  var salt = Utilities.getUuid() + Utilities.getUuid();
+  var hash = hashPassword_(password, salt, PASSWORD_HASH_ITERATIONS_);
+  return PASSWORD_HASH_SCHEME_ + "$" + PASSWORD_HASH_ITERATIONS_ + "$" + salt + "$" + hash;
+}
+
+function verifyPassword_(password, storedHash) {
+  if (typeof storedHash !== "string") {
+    return false;
+  }
+
+  var parts = storedHash.split("$");
+  var iterations = Number(parts[1]);
+  if (parts.length !== 4 || parts[0] !== PASSWORD_HASH_SCHEME_ ||
+      !Number.isInteger(iterations) || iterations < PASSWORD_HASH_MIN_ITERATIONS_ ||
+      iterations > PASSWORD_HASH_MAX_ITERATIONS_ || !parts[2] || !parts[3]) {
+    return false;
+  }
+
+  var expectedHash = hashPassword_(password, parts[2], iterations);
+  if (expectedHash.length !== parts[3].length) {
+    return false;
+  }
+
+  var difference = 0;
+  for (var i = 0; i < expectedHash.length; i++) {
+    difference |= expectedHash.charCodeAt(i) ^ parts[3].charCodeAt(i);
+  }
+  return difference === 0;
+}
+
+// Run repeatedly from the Apps Script editor; each execution hashes at most one password.
+function migrateUserPasswords() {
+  var userSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Users");
+  if (!userSheet) {
+    throw new Error("Tabellenblatt 'Users' nicht gefunden.");
+  }
+
+  var lastRow = userSheet.getLastRow();
+  if (lastRow < 2) {
+    throw new Error("Im Tabellenblatt 'Users' wurden keine Benutzer gefunden.");
+  }
+
+  var properties = PropertiesService.getScriptProperties();
+  var nextRow = Number(properties.getProperty(PASSWORD_MIGRATION_NEXT_ROW_PROPERTY_)) || 2;
+
+  while (nextRow <= lastRow) {
+    var userData = userSheet.getRange(nextRow, 1, 1, 2).getValues()[0];
+    var username = userData[0];
+    var password = userData[1];
+    var hasPassword = password !== "" && password !== null;
+
+    if (!username && !hasPassword) {
+      nextRow++;
+      properties.setProperty(PASSWORD_MIGRATION_NEXT_ROW_PROPERTY_, String(nextRow));
+      continue;
+    }
+    if (!hasPassword) {
+      throw new Error("Für Benutzer in Zeile " + nextRow + " fehlt ein Passwort.");
+    }
+    if (typeof password === "string" && password.indexOf(PASSWORD_HASH_SCHEME_ + "$") === 0) {
+      nextRow++;
+      properties.setProperty(PASSWORD_MIGRATION_NEXT_ROW_PROPERTY_, String(nextRow));
+      continue;
+    }
+
+    userSheet.getRange(nextRow, 2).setValue(createPasswordHash_(password.toString()));
+    nextRow++;
+    properties.setProperty(PASSWORD_MIGRATION_NEXT_ROW_PROPERTY_, String(nextRow));
+    Logger.log("Passwort in Zeile " + (nextRow - 1) + " migriert. Führe die Funktion erneut aus, um fortzufahren.");
+    return;
+  }
+
+  properties.deleteProperty(PASSWORD_MIGRATION_NEXT_ROW_PROPERTY_);
+  Logger.log("Passwortmigration abgeschlossen.");
+}
+
 function createAuthToken_(username) {
+  var issuedAt = Math.floor(Date.now() / 1000);
   var claims = {
     sub: username,
-    exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60
+    iat: issuedAt,
+    exp: issuedAt + AUTH_TOKEN_LIFETIME_SECONDS_
   };
   var encodedClaims = encodeBase64Url_(JSON.stringify(claims));
   var signature = Utilities.computeHmacSha256Signature(encodedClaims, getAuthTokenSecret_());
@@ -66,8 +173,10 @@ function getAuthenticatedUsername_(token) {
 
   try {
     var claims = JSON.parse(decodeBase64Url_(parts[0]));
-    if (!claims.sub || typeof claims.sub !== "string" || !Number.isFinite(claims.exp) ||
-        claims.exp <= Math.floor(Date.now() / 1000)) {
+    var now = Math.floor(Date.now() / 1000);
+    if (!claims.sub || typeof claims.sub !== "string" || !Number.isFinite(claims.iat) ||
+        !Number.isFinite(claims.exp) || claims.iat > now || claims.exp <= now ||
+        claims.exp <= claims.iat || claims.exp - claims.iat > AUTH_TOKEN_LIFETIME_SECONDS_) {
       return null;
     }
     return claims.sub;
@@ -157,14 +266,20 @@ function doPost(e) {
       }
 
       var values = userSheet.getDataRange().getValues();
+      var usernameInput = payload.username;
+      var passwordInput = payload.password;
+      if (typeof usernameInput !== "string" || !usernameInput.trim() ||
+          typeof passwordInput !== "string" || !passwordInput) {
+        return jsonResponse_({ status: "error", message: "Benutzername oder Passwort falsch!" });
+      }
 
       for (var i = 1; i < values.length; i++) {
         var dbUser = values[i][0]; // Spalte A: Username
-        var dbPass = values[i][1]; // Spalte B: Password
+        var dbPassHash = values[i][1]; // Spalte B: Passwort-Hash
 
-        if (dbUser && dbPass && 
-            dbUser.toString().toLowerCase() === payload.username.toString().toLowerCase() && 
-            dbPass.toString() === payload.password.toString()) {
+        if (dbUser && dbPassHash &&
+            dbUser.toString().toLowerCase() === usernameInput.trim().toLowerCase() &&
+            verifyPassword_(passwordInput, dbPassHash.toString())) {
           
           var token = createAuthToken_(dbUser.toString());
           return jsonResponse_({ status: "success", username: dbUser, token: token });
