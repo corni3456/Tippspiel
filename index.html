@@ -31,6 +31,15 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
     -->
 
     <style>
+        :root {
+            --brand-green: #2e7d32;
+            --brand-green-dark: #1b5e20;
+            --brand-green-soft: #e8f3e9;
+            --brand-green-pale: #f4faf4;
+            --brand-green-border: #c8dfca;
+            --brand-green-shadow: rgba(46, 125, 50, 0.22);
+        }
+
         body {
             font-family: Arial, sans-serif;
             max-width: 800px;
@@ -111,8 +120,8 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
             margin: 0 0 14px;
             padding: 18px 20px;
             border-radius: 8px;
-            background: linear-gradient(110deg, #388e3c 0%, #43a047 58%, #f9a825 100%);
-            box-shadow: 0 4px 12px rgba(46, 125, 50, 0.22);
+            background: linear-gradient(110deg, var(--brand-green) 0%, #388e3c 58%, #f9a825 100%);
+            box-shadow: 0 4px 12px var(--brand-green-shadow);
             color: #ffffff;
             font-size: 26px;
             font-weight: 700;
@@ -127,7 +136,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
             border: 1px solid #e0e0e0;
             border-radius: 8px;
             background-color: #f8f9fa;
-            color: #2e7d32;
+            color: var(--brand-green);
             font-weight: bold;
             white-space: nowrap;
         }
@@ -150,7 +159,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
 
         .race-ticker-group span:not(:last-child) {
             padding-right: 0.625rem;
-            border-right: 1px solid #b8c8b8;
+            border-right: 1px solid var(--brand-green-border);
         }
 
         @keyframes race-ticker-scroll {
@@ -170,7 +179,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
 
         .rules-link {
             display: inline-block;
-            color: #2e7d32;
+            color: var(--brand-green);
             font-size: 12px;
             font-weight: bold;
             text-decoration: none;
@@ -229,7 +238,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
 
         .tab-button.active {
             background-color: #ffffff;
-            color: #2e7d32;
+            color: var(--brand-green);
             border-bottom: 1px solid #ffffff;
             margin-bottom: -1px;
         }
@@ -300,7 +309,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
         .submit-btn {
             width: 100%;
             padding: 12px;
-            background-color: #2e7d32;
+            background-color: var(--brand-green);
             color: #ffffff;
             border: none;
             border-radius: 4px;
@@ -312,7 +321,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
         }
 
         .submit-btn:hover {
-            background-color: #1b5e20;
+            background-color: var(--brand-green-dark);
         }
 
         .submit-btn:disabled {
@@ -775,7 +784,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
     <script>
         // Das JavaScript verbindet die HTML-Oberfläche mit dem Google Apps Script-Backend.
         // Es verwaltet den Login, die Sitzung, Wettscheine, Ergebnisauswertung und die Gesamtpunktetabelle.
-        const APP_VERSION = "1.2.4";
+        const APP_VERSION = "1.2.5";
         const RACE_TICKER_SPEED_PX_PER_SECOND = 150;
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzx72oXGk8rux77zzZBzMUuE7JNM020bJisc-WTlK9Rgq-3pvSMW9MiOT-mUyC_6Fk1/exec";
         document.getElementById('appVersion').textContent = APP_VERSION;
