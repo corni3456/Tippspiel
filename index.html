@@ -448,6 +448,70 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                 padding: 8px 12px 12px;
             }
 
+            .login-overlay {
+                height: 100vh;
+                height: 100dvh;
+                align-items: stretch;
+                background-color: #f4faf4;
+            }
+
+            .login-card {
+                display: flex;
+                flex: 1;
+                flex-direction: column;
+                justify-content: center;
+                width: 100%;
+                max-width: none;
+                height: 100%;
+                box-sizing: border-box;
+                overflow-y: auto;
+                padding: calc(32px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
+                border-radius: 0;
+                border: 1px solid var(--brand-green-border);
+                box-shadow: none;
+            }
+
+            .login-logo {
+                width: 100%;
+                max-width: 170px;
+                margin-bottom: 28px;
+            }
+
+            .login-card h2 {
+                margin-bottom: 24px;
+                color: var(--brand-green-dark);
+                font-size: 26px;
+            }
+
+            .login-card #loginForm {
+                width: 100%;
+                max-width: 380px;
+                margin: 0 auto;
+                text-align: left;
+            }
+
+            .login-card input {
+                min-height: 48px;
+                margin: 8px 0 20px;
+                border-color: #cfd8cf;
+                border-radius: 8px;
+            }
+
+            .login-card input:focus {
+                border-color: var(--brand-green);
+                outline: 2px solid var(--brand-green-border);
+                outline-offset: 1px;
+            }
+
+            .login-card .submit-btn {
+                min-height: 48px;
+                border-radius: 8px;
+            }
+
+            .login-version {
+                margin-top: 24px;
+            }
+
             .app-title {
                 padding: 15px 16px;
                 font-size: 22px;
