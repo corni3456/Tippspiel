@@ -368,6 +368,10 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
             color: #333333;
         }
 
+        #summary p {
+            margin: 6px 0;
+        }
+
         .summary-box ul {
             margin: 0;
             padding-left: 20px;
@@ -705,7 +709,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                     <h3>Zusammenfassung</h3>
 
                     <p><strong>Benutzer:</strong> <span id="summaryUser">-</span></p>
-
+                    <p><strong>Rennort:</strong> <span id="summaryLocation">-</span></p>
                     <p><strong>Rennen:</strong> <span id="selectedOption">-</span></p>
 
                     <p><strong>Wette:</strong></p>
@@ -846,9 +850,9 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
     <script>
         // Das JavaScript verbindet die HTML-Oberfläche mit dem Google Apps Script-Backend.
         // Es verwaltet den Login, die Sitzung, Wettscheine, Ergebnisauswertung und die Gesamtpunktetabelle.
-        const APP_VERSION = "1.2.7";
+        const APP_VERSION = "1.2.8";
         const RACE_TICKER_SPEED_PX_PER_SECOND = 150;
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzx72oXGk8rux77zzZBzMUuE7JNM020bJisc-WTlK9Rgq-3pvSMW9MiOT-mUyC_6Fk1/exec";
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby0SMUb0VEbnqgmSpg4BOUAhmikrHvRBzNP7vazz6w_O53lBqL_jv-Jc1guXTaUCLWK/exec";
         document.getElementById('appVersion').textContent = APP_VERSION;
         document.getElementById('loginAppVersion').textContent = APP_VERSION;
         const AUTH_TOKEN_STORAGE_KEY = 'tippspielAuthToken';
@@ -880,6 +884,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
         const tableInfoMsg = document.getElementById('tableInfoMsg');
         let overallTableRequestId = 0;
         let betLookupRequestId = 0;
+        let raceLocations = {};
         window.addEventListener('resize', updateRaceTickerSpeed);
 
         // Nach erfolgreicher Anmeldung wird der Benutzer als eingeloggt gesetzt.
@@ -901,6 +906,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
 
         function showBetSummary(user, race, platz1, platz2, platz3) {
             document.getElementById('summaryUser').textContent = user;
+            document.getElementById('summaryLocation').textContent = raceLocations[race] || "-";
             document.getElementById('selectedOption').textContent = race;
             document.getElementById('summaryVal1').textContent = platz1;
             document.getElementById('summaryVal2').textContent = platz2;
@@ -969,6 +975,11 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                 .then(response => response.json())
                 .then(res => {
                     if (res.status === "success" && Array.isArray(res.rennen)) {
+                        raceLocations = {};
+                        res.rennen.forEach((rennenName, index) => {
+                            raceLocations[rennenName] = Array.isArray(res.rennorte) ? res.rennorte[index] || "" : "";
+                        });
+
                         [raceSelect, resultRaceSelect].forEach(select => {
                             select.innerHTML = '<option value="" disabled selected>Bitte wählen...</option>';
                             res.rennen.forEach(rennenName => {
