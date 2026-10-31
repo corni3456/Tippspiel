@@ -861,7 +861,7 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
     <script>
         // Das JavaScript verbindet die HTML-Oberfläche mit dem Google Apps Script-Backend.
         // Es verwaltet den Login, die Sitzung, Wettscheine, Ergebnisauswertung und die Gesamtpunktetabelle.
-        const APP_VERSION = "1.2.8";
+        const APP_VERSION = "1.3.0";
         const RACE_TICKER_SPEED_PX_PER_SECOND = 150;
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzwKSY-5uO0PXzjkXbzJEhcqCMx50U1VKThHkFRE0WJdiIEMDJ-0eh94CfNBThJvng/exec";
         document.getElementById('appVersion').textContent = APP_VERSION;
@@ -913,6 +913,9 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
             loginOverlay.style.display = 'none';
             appContent.style.display = 'block';
             requestAnimationFrame(updateRaceTickerSpeed);
+            if (raceSelect.value) {
+                loadExistingBet();
+            }
         }
 
         function showBetSummary(user, race, platz1, platz2, platz3) {
@@ -991,6 +994,14 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                             raceLocations[rennenName] = Array.isArray(res.rennorte) ? res.rennorte[index] || "" : "";
                         });
 
+                        const raceDates = Array.isArray(res.renntermine) ? res.renntermine : [];
+                        const today = new Date();
+                        const todayValue = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+                        const nextRace = res.rennen
+                            .map((name, index) => ({ name, date: parseRaceDate(raceDates[index]) }))
+                            .filter(race => race.date !== null && race.date >= todayValue)
+                            .sort((a, b) => a.date - b.date)[0];
+
                         [raceSelect, resultRaceSelect].forEach(select => {
                             select.innerHTML = '<option value="" disabled selected>Bitte wählen...</option>';
                             res.rennen.forEach(rennenName => {
@@ -999,8 +1010,12 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
                                 opt.textContent = rennenName;
                                 select.appendChild(opt);
                             });
+                            select.value = nextRace ? nextRace.name : "";
                         });
-                        renderRaceTicker(res.rennen, res.renntermine);
+                        renderRaceTicker(res.rennen, raceDates);
+                        if (loggedInUser && raceSelect.value) {
+                            loadExistingBet();
+                        }
                     }
                 })
                 .catch(error => console.error('Fehler beim Laden der Rennen:', error));
@@ -1204,6 +1219,8 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
         });
 
         function resetViewState() {
+            const selectedRace = raceSelect.value;
+            const selectedResultRace = resultRaceSelect.value;
             betLookupRequestId++;
             summaryDiv.style.display = 'none';
             betInfoMsg.style.display = 'none';
@@ -1211,6 +1228,8 @@ Dieser Code darf ohne ausdrückliche Genehmigung nicht kopiert oder weiterverwen
             resultsInfoMsg.style.display = 'none';
             dataForm.reset();
             resultsForm.reset();
+            raceSelect.value = selectedRace;
+            resultRaceSelect.value = selectedResultRace;
         }
 
         loginForm.addEventListener('submit', function (event) {
