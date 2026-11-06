@@ -1,6 +1,6 @@
 {
-  "name": "Tippspiel",
-  "short_name": "Tippspiel",
+  "name": "Turf-Champion",
+  "short_name": "Turfchampion",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#ffffff",
